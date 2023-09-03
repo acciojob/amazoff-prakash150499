@@ -1,5 +1,6 @@
 package com.driver;
 
+
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -9,142 +10,205 @@ import java.util.List;
 @Repository
 public class OrderRepository {
 
-    HashMap<String,Order> orderMap=new HashMap<>();
-    HashMap<String,DeliveryPartner> deliveryPartnerMap=new HashMap<>();
-    HashMap<String , String>orderPartnerMap=new HashMap<>();
-    HashMap<String , List<String>>partnerOrderMap=new HashMap<>();
+    HashMap<String,Order> orderMap = new HashMap<>();
+    HashMap<String,DeliveryPartner> partnerMap = new HashMap<>();
+    HashMap<String, List<String>> partnerOrderMap = new HashMap<>();
+    HashMap<String,String> orderPartnerMap = new HashMap<>();
 
-    public void addOrder(Order order) {
+
+    public void addOrder(Order order)
+    {
+
+
         orderMap.put(order.getId(),order);
     }
 
-    public void addPartner(String partnerId) {
-        DeliveryPartner deliveryPartner=new DeliveryPartner(partnerId);
-        deliveryPartnerMap.put(partnerId,deliveryPartner);
-
+    public void addPartner(String id)
+    {
+        DeliveryPartner deliveryPartner = new DeliveryPartner(id);
+        partnerMap.put(id,deliveryPartner);
     }
 
-    public void addOrderPartnerPair(String orderId, String partnerId) {
-        DeliveryPartner deliveryPartner=deliveryPartnerMap.get(partnerId);
-        deliveryPartner.setNumberOfOrders(deliveryPartner.getNumberOfOrders()+1);
-        orderPartnerMap.put(orderId,partnerId);
-        associateOrderWithPartner(orderId,partnerId);
-    }
-
-    private void associateOrderWithPartner(String orderId, String partnerId) {
-        if(partnerOrderMap.containsKey(partnerId))
+    public void addOrderPartnerPair(String orderId,String partnerId)
+    {
+        if(orderMap.containsKey(orderId) && partnerMap.containsKey(partnerId))
         {
-            List<String>orders=partnerOrderMap.get(partnerId);
-            orders.add(orderId);
-            partnerOrderMap.put(partnerId,orders);
-        }
-        else
-        {
-            List<String>orders=new ArrayList<>();
-            orders.add(orderId);
-            partnerOrderMap.put(partnerId,orders);
+            orderPartnerMap.put(orderId,partnerId);
+            orderMap.put(orderId,orderMap.get(orderId));
+            partnerMap.put(partnerId,partnerMap.get(partnerId));
+            if(partnerOrderMap.containsKey(partnerId))
+            {
+                List<String> temp = partnerOrderMap.get(partnerId);
+                temp.add(orderId);
+                partnerOrderMap.put(partnerId,temp);
+            }
+            else {
+                List<String> temp = new ArrayList<>();
+                temp.add(orderId);
+                partnerOrderMap.put(partnerId,temp);
+            }
+
+            DeliveryPartner dp = partnerMap.get(partnerId);
+            int deliverys = dp.getNumberOfOrders();
+            dp.setNumberOfOrders(deliverys+1);
+
         }
     }
 
-    public Order getOrderById(String orderId) {
-        Order order=orderMap.get(orderId);
-        return order;
+    public Order getOrderById(String orderId)
+    {
+        if(orderMap.containsKey(orderId))
+        {
+            return orderMap.get(orderId);
+        }
+
+        return null;
     }
 
     public DeliveryPartner getPartnerById(String partnerId) {
-        DeliveryPartner partner=deliveryPartnerMap.get(partnerId);
-        return partner;
+        if (partnerMap.containsKey(partnerId)) {
+            return partnerMap.get(partnerId);
+        }
+        return null;
     }
 
-    public Integer getOrderCountByPartnerId(String partnerId) {
-        DeliveryPartner partner=deliveryPartnerMap.get(partnerId);
-        return partner.getNumberOfOrders();
-    }
-
-    public List<String> getOrdersByPartnerId(String partnerId) {
-    List<String>orderList=partnerOrderMap.get(partnerId);
-        return orderList;
-    }
-
-    public List<String> getAllOrders() {
-        List<String>allOrders=new ArrayList<>(orderMap.keySet());
-        return allOrders;
-    }
-
-    public Integer getCountOfUnassignedOrders() {
-        int totalOrders=orderMap.size();
-        int assignedOrders=orderPartnerMap.size();
-        int unassignedOrders=totalOrders-assignedOrders;
-        return unassignedOrders;
-    }
-
-    public Integer getOrdersLeftAfterGivenTimeByPartnerId(String time, String partnerId) {
-        String[] parts = time.split(":");
-        int currentTime=0;
-        int ordersLeft=0;
-        currentTime+=Integer.parseInt(parts[0])*60;
-        currentTime+=Integer.parseInt(parts[1]);
-        List<String>orders=partnerOrderMap.get(partnerId);
-        for(String orderId:orders)
+    public int getOrderCountByPartnerId(String partnerId)
+    {
+        if(partnerOrderMap.containsKey(partnerId))
         {
-            Order currentOrder=orderMap.get(orderId);
-            if(currentOrder.getDeliveryTime()>currentTime)
+            return partnerOrderMap.get(partnerId).size();
+        }
+
+        return 0;
+    }
+
+    public List<String> getOrdersByPartnerId(String partnerId)
+    {
+        if(partnerOrderMap.containsKey(partnerId))
+        {
+            return partnerOrderMap.get(partnerId);
+        }
+
+        return new ArrayList<>();
+    }
+
+    public List<String> getAllOrders()
+    {
+        List<String> temp = new ArrayList<>();
+        for(String i:orderMap.keySet())
+        {
+            temp.add(i);
+        }
+
+        return temp;
+    }
+
+    public int getCountOfUnassignedOrders()
+    {
+        int count = orderMap.size()-orderPartnerMap.size();
+
+        return count;
+    }
+
+    public int getOrdersLeftAfterGivenTimeByPartnerId(String time,String partnerId)
+    {
+        String []temp = time.split(":");
+        int hour = Integer.valueOf(temp[0]);
+        int min = Integer.valueOf(temp[1]);
+        int givenTime = (60*hour)+min;
+
+        List<String> list = partnerOrderMap.get(partnerId);
+        int count =0;
+        for(String i:list)
+        {
+            Order order = orderMap.get(i);
+            int delTime = order.getDeliveryTime();
+            if(delTime>givenTime)
             {
-                ordersLeft++;
+                count++;
             }
         }
-        return ordersLeft;
+
+        return count;
     }
 
-    public String getLastDeliveryTimeByPartnerId(String partnerId) {
-        List<String>partnerOrders=partnerOrderMap.get(partnerId);
-        int lastTime=0;
-        for(String orderId:partnerOrders)
-        {
-
-            Order currentOrder=orderMap.get(orderId);
-            int currentTime=currentOrder.getDeliveryTime();
-            lastTime=Math.max(lastTime,currentTime);
-
+    public String getLastDeliveryTimeByPartnerId(String partnerId)
+    {
+        String time = "";
+        List<String> list = partnerOrderMap.get(partnerId);
+        int deliveryTime = 0;
+        for (String s : list) {
+            Order order = orderMap.get(s);
+            deliveryTime = Math.max(deliveryTime, order.getDeliveryTime());
         }
-        // Converting time to string
-        String time="";
-        int hours=lastTime/60;
-        int mins=lastTime%60;
-        if(hours<10)
-        {
-            time+="0";
-            time+=hours;
+        int hour = deliveryTime / 60;
+        String sHour = "";
+        if (hour < 10) {
+            sHour = "0" + String.valueOf(hour);
+        } else {
+            sHour = String.valueOf(hour);
         }
-        else
-        {
-            time+=hours;
+        int min = deliveryTime % 60;
+        String sMin = "";
+        if (min < 10) {
+            sMin = "0" + String.valueOf(min);
+        } else {
+            sMin = String.valueOf(min);
         }
-        time+=":";
-        if(mins<10)
-        {
-            time+="0";
-            time+=mins;
-        }
-        else
-        {
-            time+=mins;
-        }
+        time = sHour + ":" + sMin;
         return time;
     }
 
-    public void deletePartnerById(String partnerId) {
-        List<String>partnerOrders=partnerOrderMap.get(partnerId);
-        for(String order:partnerOrders)
+    public void deletePartnerById(String partnerId)
+    {
+        List<String> list = partnerOrderMap.get(partnerId);
+        for(String i:list)
         {
-            orderPartnerMap.remove(order);
+            orderPartnerMap.remove(i);
         }
+
+        if(partnerMap.containsKey(partnerId))
+        {
+            partnerMap.remove(partnerId);
+        }
+
         partnerOrderMap.remove(partnerId);
-
     }
 
-    public void deleteOrderById(String orderId) {
+    public void deleteOrderById(String orderId)
+    {
+
+
         orderMap.remove(orderId);
+        String parent = orderPartnerMap.get(orderId);
         orderPartnerMap.remove(orderId);
+        List<String> list = new ArrayList<>();
+        for(String i:list)
+        {
+            if(orderId.equals(i))
+            {
+                list.remove(i);
+            }
+        }
+        partnerOrderMap.put(parent,list);
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
